@@ -68,15 +68,38 @@ router.post("/", async (req, res) => {
 
 router.put("/:projectId", async (req, res) => {
   try {
-    const project = await Project.findById(req.params.projectId).populate(
-      "user"
+    const { title, description, tasks } = req.body;
+
+    const project = await Project.findByIdAndUpdate(
+      req.params.projectId,
+      {
+        title,
+        description,
+      },
+      { new: true } //Retornar o registro atualizado
     );
+
+    //Remover antes de salvar novamente.
+    project.tasks = [];
+    await Task.remove({ project: project._id });
+
+    //Aguardar o método executar
+    await Promise.all(
+      tasks.map(async (task) => {
+        const projectTask = new Task({ ...task, project: project._id });
+        await projectTask.save();
+        project.tasks.push(projectTask);
+      })
+    );
+
+    await project.save();
+
     return res.send({ project });
   } catch (err) {
     console.log(err);
     return res
       .status(400)
-      .send({ error: "Error loading project", details: err });
+      .send({ error: "Error update project", details: err });
   }
 });
 
