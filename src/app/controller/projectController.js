@@ -36,7 +36,21 @@ router.get("/:projectId", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const project = await Project.create({ ...req.body, user: req.userId });
+    const { title, description, tasks } = req.body;
+
+    const project = await Project.create({
+      title,
+      description,
+      user: req.userId,
+    });
+
+    tasks.map((task) => {
+      const projectTask = new Task({ ...task, project: project._id });
+      projectTask.save().then((task) => project.task.push(task));
+    });
+
+    await project.save();
+
     return res.send({ project });
   } catch (err) {
     console.log(err);
@@ -47,11 +61,29 @@ router.post("/", async (req, res) => {
 });
 
 router.put("/:projectId", async (req, res) => {
-  res.send({ user: req.userId });
+  try {
+    const project = await Project.findById(req.params.projectId).populate(
+      "user"
+    );
+    return res.send({ project });
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(400)
+      .send({ error: "Error loading project", details: err });
+  }
 });
 
 router.delete("/:projectId", async (req, res) => {
-  res.send({ user: req.userId });
+  try {
+    await Project.findByIdAndRemove(req.params.projectId);
+    return res.send("Ok");
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(400)
+      .send({ error: "Error remove project", details: err });
+  }
 });
 
 module.exports = (app) => app.use("/projects", router);
