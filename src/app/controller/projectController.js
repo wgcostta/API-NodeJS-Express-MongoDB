@@ -3,6 +3,7 @@ const authMiddleware = require("../middlewares/auth");
 
 const Project = require("../model/Projects");
 const Task = require("../model/Task");
+const { promises } = require("fs");
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ router.use(authMiddleware);
 
 router.get("/", async (req, res) => {
   try {
-    const projects = await Project.find().populate("user");
+    const projects = await Project.find().populate(["user", "tasks"]);
     return res.send({ projects });
   } catch (err) {
     console.log(err);
@@ -22,9 +23,10 @@ router.get("/", async (req, res) => {
 
 router.get("/:projectId", async (req, res) => {
   try {
-    const project = await Project.findById(req.params.projectId).populate(
-      "user"
-    );
+    const project = await Project.findById(req.params.projectId).populate([
+      "user",
+      "tasks",
+    ]);
     return res.send({ project });
   } catch (err) {
     console.log(err);
@@ -44,10 +46,14 @@ router.post("/", async (req, res) => {
       user: req.userId,
     });
 
-    tasks.map((task) => {
-      const projectTask = new Task({ ...task, project: project._id });
-      projectTask.save().then((task) => project.task.push(task));
-    });
+    //Aguardar o método executar
+    await Promise.all(
+      tasks.map(async (task) => {
+        const projectTask = new Task({ ...task, project: project._id });
+        await projectTask.save();
+        project.tasks.push(projectTask);
+      })
+    );
 
     await project.save();
 
